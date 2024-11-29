@@ -55,6 +55,12 @@ class Client(commands.CommandsClient):
         )
         await msg.edit(content=f"Pong!", embeds=[embed])
 
+    @commands.command()
+    async def empty(self, ctx: commands.Context):
+        embed = revolt.SendableEmbed(
+            colour="#00ff00"
+        )
+        await ctx.send(embeds=[embed])
 
 async def main():
     async with aiohttp.ClientSession() as session:
