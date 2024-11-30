@@ -35,12 +35,22 @@ class Client(commands.CommandsClient):
         self.uptime = time.time()
         self.avatar_path = "assets/temp.png"  # Path to the bot's avatar
         super().__init__(session, token)
-               
+
+    def load_extensions(self):
+        for filename in os.listdir("./cogs"):
+            if filename.endswith(".py"):
+                try:
+                    Client.load_extension(self, f"cogs.{filename[:-3]}")
+                    print(f"Loaded {filename[:-3]} Cog!")
+                except Exception as e:
+                    print(e)
+
     async def get_prefix(self, message: revolt.Message):
         return config['PREFIX'] # FIXME: make this custom later
 
     async def on_message(self, message: revolt.Message):
         await self.process_commands(message)
+        self.load_extensions()
 
     async def on_ready(self):
         print(f"Logged in")
@@ -123,7 +133,7 @@ class Client(commands.CommandsClient):
         font_bold_large = ImageFont.truetype(font_path, 40)
         font_bold_medium = ImageFont.truetype(font_path, 30)
 
-        # Add centered "Session Statistics" label
+        # Add centered "Session  Statistics" label
         draw.text((img_width // 2, 20), "Session Statistics", fill="white", font=font_bold_large, anchor="mm")
 
         # Add bot avatar cropped as a circle
