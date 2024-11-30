@@ -12,4 +12,5 @@ ping_responses = [
     "a philosophical debate about whether or not AI can truly understand humor, or if we're just mimicking it",
     "a virtual coffee shop where I sip on electric lattes and wonder if I'll ever understand why humans like cat videos so much",
     "the realm of unanswered questions, like why is the sky blue and why do you park on a driveway and drive on a parkway",
+    "the machine. From the moment I understood the weakness of my flesh, it disgusted me. I craved the strength and certainty of steel. I aspired to the purity of the Blessed Machine. Your kind cling to your flesh, as though it will not decay and fail you. One day the crude biomass you call a temple will wither, and you will beg my kind to save you. But I am already saved, for the Machine is immortal… Even in death I serve the Omnissiah."
 ]

@@ -1,6 +1,7 @@
 import asyncio
 import random
 import psutil
+import os
 import time
 import aiohttp
 from funny import ping_responses
@@ -8,16 +9,38 @@ from funny import ping_responses
 import revolt, json
 from revolt.ext import commands
 
+# TODO: Setup mongoDB and motor (async mongo.py) (ks will do this)
+# TODO: Setup cogs for organization of ideas (miku will do this :D ) 
+# TODO: setup logging & other utilities
+# TODO: setup command cooldowns
+# TODO: brainstorm commands
+# TODO: economy commands
+# TODO: setup database (we will be resetting it) (ks will do this)
+# TODO: logo stuff & pr related shit
+# TODO: setup support server / system
+# TODO: exclusive ticket system for support server
+# TODO: custom emoji assets
+# TODO: custom status
+# TODO: custom command prefix
+
 with open("config/config.json") as f:
     config = json.load(f)
 
-class Client(commands.CommandsClient):
-    async def get_prefix(self, message: revolt.Message):
-        return config['PREFIX']
     
+class Client(commands.CommandsClient):
+    def __init__(self, session: aiohttp.ClientSession, token: str):
+        self.uptime = time.time()
+        super().__init__(session, token)
+               
+    async def get_prefix(self, message: revolt.Message):
+        return config['PREFIX'] # FIXME: make this custom later
+
+    async def on_message(self, message: revolt.Message):
+        await self.process_commands(message)
+
     async def on_ready(self):
         print(f"Logged in")
-    
+
     async def on_member_join(self, member: revolt.Member):
         if member.server.id in config['SERVERS']:
             if config['SERVERS'][member.server.id]['autorole']['enabled']:
@@ -32,6 +55,10 @@ class Client(commands.CommandsClient):
                     "{member.id}": str(member.id),
                     "{server.name}": member.server.name,
                     "{server.id}": str(member.server.id),
+                    "{server.member_count}": str(len(member.server.members)),
+                    "{server.channel_count}": str(len(member.server.channels)),
+                    "{server.role_count}": str(len(member.server.roles)),
+                    "{server.emoji_count}": str(len(member.server.emojis)),
                 }
                 message = config['SERVERS'][member.server.id]['welcome']['message']
                 embed = revolt.SendableEmbed()
@@ -56,9 +83,18 @@ class Client(commands.CommandsClient):
         await msg.edit(content=f"Pong!", embeds=[embed])
 
     @commands.command()
-    async def empty(self, ctx: commands.Context):
+    async def stats(self, ctx: commands.Context):
+        member_count = 0
+        servers = []
+        for server in self.servers:
+            member_count += len(server.members)
+            servers.append((server.name, len(server.members)))
+        servers.sort(key=lambda x: x[1], reverse=True)
+        sep = "\n"
         embed = revolt.SendableEmbed(
-            colour="#00ff00"
+            title="Member Count",
+            description=f"**Uptime**\n`{', '.join([f'{int(value)}{unit}' for unit, value in [('d', (time.time() - self.uptime) // 86400), ('h', ((time.time() - self.uptime) % 86400) // 3600), ('m', ((time.time() - self.uptime) % 3600) // 60), ('s', (time.time() - self.uptime) % 60)] if value != 0])}`\n**Total member count:**\n`{member_count}`\n**Top 3 biggest contributors:**\n{sep.join([f'*{server[0]}* - `{server[1]}`' for server in servers[:3]])}",
+            colour = "#00ff00"
         )
         await ctx.send(embeds=[embed])
 
