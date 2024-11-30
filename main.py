@@ -1,3 +1,6 @@
+from PIL import Image, ImageDraw, ImageFont, ImageOps
+from io import BytesIO
+import datetime
 import asyncio
 import random
 import psutil
@@ -26,10 +29,11 @@ from revolt.ext import commands
 with open("config/config.json") as f:
     config = json.load(f)
 
-    
+
 class Client(commands.CommandsClient):
     def __init__(self, session: aiohttp.ClientSession, token: str):
         self.uptime = time.time()
+        self.avatar_path = "assets/temp.png"  # Path to the bot's avatar
         super().__init__(session, token)
                
     async def get_prefix(self, message: revolt.Message):
@@ -72,6 +76,7 @@ class Client(commands.CommandsClient):
                     message['content'] = message['content'].replace(key, value)
                 await channel.send(message['content'], embeds=[embed])
 
+
     @commands.command()
     async def ping(self, ctx: commands.Context):
         start = time.time()
@@ -82,6 +87,8 @@ class Client(commands.CommandsClient):
         )
         await msg.edit(content=f"Pong!", embeds=[embed])
 
+
+
     @commands.command()
     async def stats(self, ctx: commands.Context):
         member_count = 0
@@ -90,17 +97,112 @@ class Client(commands.CommandsClient):
             member_count += len(server.members)
             servers.append((server.name, len(server.members)))
         servers.sort(key=lambda x: x[1], reverse=True)
-        sep = "\n"
-        embed = revolt.SendableEmbed(
-            title="Member Count",
-            description=f"**Uptime**\n`{', '.join([f'{int(value)}{unit}' for unit, value in [('d', (time.time() - self.uptime) // 86400), ('h', ((time.time() - self.uptime) % 86400) // 3600), ('m', ((time.time() - self.uptime) % 3600) // 60), ('s', (time.time() - self.uptime) % 60)] if value != 0])}`\n**Total member count:**\n`{member_count}`\n**Top 3 biggest contributors:**\n{sep.join([f'*{server[0]}* - `{server[1]}`' for server in servers[:3]])}",
-            colour = "#00ff00"
-        )
-        await ctx.send(embeds=[embed])
+
+        # Calculate progress for the next milestone
+        milestone = ((member_count // 5000) + 1) * 5000  # Next milestone
+        progress = member_count / milestone
+
+        # Create image
+        img_width, img_height = 800, 400
+        image = Image.new("RGB", (img_width, img_height))
+        draw = ImageDraw.Draw(image)
+
+        # Create gradient background: Grey to Dark Grey
+        for y in range(img_height):
+            # Interpolate between grey (102) and dark grey (51) for each color channel
+            r = int(102 + (51 - 102) * (y / img_height))  # Transition red
+            g = int(102 + (51 - 102) * (y / img_height))  # Transition green
+            b = int(102 + (51 - 102) * (y / img_height))  # Transition blue
+            draw.line([(0, y), (img_width, y)], fill=(r, g, b))
+
+        # Fonts
+        font_path = "C:/Windows/Fonts/arial.ttf"
+        font_large = ImageFont.truetype(font_path, 36)
+        font_medium = ImageFont.truetype(font_path, 28)
+        font_small = ImageFont.truetype(font_path, 20)
+        font_bold_large = ImageFont.truetype(font_path, 40)
+        font_bold_medium = ImageFont.truetype(font_path, 30)
+
+        # Add centered "Session Statistics" label
+        draw.text((img_width // 2, 20), "Session Statistics", fill="white", font=font_bold_large, anchor="mm")
+
+        # Add bot avatar cropped as a circle
+        avatar_size = 60
+        avatar = Image.open(self.avatar_path).convert("RGBA")
+        avatar = avatar.resize((avatar_size, avatar_size))
+        mask = Image.new("L", (avatar_size, avatar_size), 0)
+        draw_mask = ImageDraw.Draw(mask)
+        draw_mask.ellipse((0, 0, avatar_size, avatar_size), fill=255)
+        avatar = ImageOps.fit(avatar, (avatar_size, avatar_size), centering=(0.5, 0.5))
+        avatar.putalpha(mask)
+
+        # Position for avatar and text
+        avatar_x, avatar_y = img_width - 160, 20
+        text_x, text_y = img_width - 90, 25
+
+        # Paste avatar onto the image
+        image.paste(avatar, (avatar_x, avatar_y), mask=avatar)
+
+        # Add "Mecha" text beside the avatar
+        draw.text((text_x, text_y), "Mecha", fill="white", font=font_medium)
+
+        # CPU usage (top right below "Mecha")
+        cpu_usage = psutil.cpu_percent()
+        draw.text((text_x, text_y + 35), f"{cpu_usage:.1f}%", fill="white", font=font_small)
+
+        # Member count milestone progress bar
+        bar_x, bar_y, bar_width, bar_height = 50, 150, 700, 30
+        progress_width = int(bar_width * progress)
+
+        # Background for progress bar
+        draw.rectangle([bar_x, bar_y, bar_x + bar_width, bar_y + bar_height], fill=(100, 100, 100))
+
+        # Gradient fill for the progress bar
+        for x in range(progress_width):
+            r = int(173 + (90 - 173) * (x / progress_width))  # Blue to darker blue
+            g = int(216 + (90 - 216) * (x / progress_width))
+            b = int(230 + (90 - 230) * (x / progress_width))
+            draw.line([(bar_x + x, bar_y), (bar_x + x, bar_y + bar_height)], fill=(r, g, b))
+
+        # Add text for member count and milestone
+        draw.text((bar_x, bar_y - 40), f"{member_count}", fill="white", font=font_small, anchor="lt")
+        draw.text((bar_x + bar_width, bar_y - 40), f"{milestone}", fill="white", font=font_small, anchor="rt")
+
+        # Top Servers Section
+        draw.text((50, 200), "Top Servers:", fill="white", font=font_bold_medium)
+        top_servers_text = "\n".join([f"{server[0]}: {server[1]}" for server in servers[:3]])
+        draw.text((50, 240), top_servers_text, fill="white", font=font_medium)
+
+        # Uptime (bottom right)
+        uptime_seconds = time.time() - self.uptime
+        uptime_string = str(datetime.timedelta(seconds=int(uptime_seconds)))
+        draw.text((img_width - 200, img_height - 40), f"Uptime: {uptime_string}", fill="white", font=font_small)
+
+        # Save to a BytesIO buffer
+        buffer = BytesIO()
+        image.save(buffer, format="PNG")
+        buffer.seek(0)
+
+        # Extract bytes and send the image
+        image_bytes = buffer.getvalue()
+        file = revolt.File(image_bytes, filename="stats.png")
+        await ctx.send(attachments=[file])
+
+
+    @commands.command(aliases=['av', 'avatar'])
+    async def avatar(self, ctx: commands.Context, member: revolt.Member=None):
+        if member is None:
+            member = ctx.author
+            url = member.avatar.url
+        if member.avatar is None:
+            url = member.default_avatar.url
+        else:
+            url = member.avatar.url
+        await ctx.send(url)
 
 async def main():
     async with aiohttp.ClientSession() as session:
-        client = Client(session, config['TOKEN'])
+        client = Client(session, config['PROD'])
         await client.start()
 
 asyncio.run(main())
