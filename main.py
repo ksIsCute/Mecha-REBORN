@@ -50,10 +50,10 @@ class Client(commands.CommandsClient):
 
     async def on_message(self, message: revolt.Message):
         await self.process_commands(message)
-        self.load_extensions()
 
     async def on_ready(self):
         print(f"Logged in")
+        self.load_extensions()
 
     async def on_member_join(self, member: revolt.Member):
         if member.server.id in config['SERVERS']:
@@ -212,7 +212,8 @@ class Client(commands.CommandsClient):
 
 async def main():
     async with aiohttp.ClientSession() as session:
-        client = Client(session, config['PROD'])
+        client = Client(session, config['TOKEN'])
         await client.start()
 
-asyncio.run(main())
+if __name__ == '__main__':
+    asyncio.run(main())

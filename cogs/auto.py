@@ -7,14 +7,14 @@ with open("config/config.json") as f:
     config = json.load(f)
 
 class Auto(commands.Cog):
-    def __init__(self, bot: revolt.Client):
+    def __init__(self, bot):
         self.bot = bot
 
     @commands.command()
-    async def aut(self, ctx: revolt.Context):
+    async def aut(self, ctx):
         """Ping the bot."""
         await ctx.send("Pong!")
 
 
-def setup(client: Client):
-    client.add_cog(Auto())
+def setup(bot):
+    bot.add_cog(Auto(bot))
